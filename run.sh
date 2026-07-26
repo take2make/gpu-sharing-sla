@@ -39,7 +39,7 @@ export CUDA_MPS_PIPE_DIRECTORY=/tmp/nvidia-mps
 export CUDA_MPS_LOG_DIRECTORY=/tmp/nvidia-mps-log
 nvidia-cuda-mps-control -d 2>&1 && echo "MPS started" || echo "MPS unavailable in this container"
 
-export VLLM_ATTENTION_BACKEND=FLASH_ATTN
+export VLLM_ATTENTION_BACKEND=TRITON_ATTN
 
 echo "=== [3/5] launch A ==="
 vllm serve "$MODEL_A" --port $PORT_A \
