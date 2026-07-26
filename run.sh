@@ -3,6 +3,11 @@ BODY=''':'
 # ===================== BASH BODY  =====================
 set -euo pipefail
 
+export VLLM_ATTENTION_BACKEND=TRITON_ATTN
+export LIBRARY_PATH="/usr/local/cuda/lib64/stubs:${LIBRARY_PATH:-}"
+ln -sf /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/libcuda.so 2>/dev/null || true
+echo "BACKEND=$VLLM_ATTENTION_BACKEND"
+
 REPO_URL="https://github.com/take2make/gpu-sharing-sla.git"
 
 MODEL_A="unsloth/Llama-3.2-1B-Instruct"
@@ -38,8 +43,6 @@ echo "=== attempt MPS ==="
 export CUDA_MPS_PIPE_DIRECTORY=/tmp/nvidia-mps
 export CUDA_MPS_LOG_DIRECTORY=/tmp/nvidia-mps-log
 nvidia-cuda-mps-control -d 2>&1 && echo "MPS started" || echo "MPS unavailable in this container"
-
-export VLLM_ATTENTION_BACKEND=TRITON_ATTN
 
 echo "=== [3/5] launch A ==="
 vllm serve "$MODEL_A" --port $PORT_A \
