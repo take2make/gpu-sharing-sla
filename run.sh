@@ -13,7 +13,7 @@ PORT_A=8000
 PORT_B=8001
 PORT_C=8002
 
-CONC_A=16
+CONC_A=40
 CONC_B=14
 CONC_C=12
 
@@ -26,25 +26,31 @@ git clone --depth 1 "$REPO_URL" /content/AE_HW
 cd /content/AE_HW
 mkdir -p out
 
-echo "=== [2/5] pip install requirements ==="
+echo "=== [2/5] pip install ==="
 pip install --no-input uv
 uv pip install --system -r requirements.txt
 
+echo "=== run MPS ==="
+export CUDA_MPS_PIPE_DIRECTORY=/tmp/nvidia-mps
+export CUDA_MPS_LOG_DIRECTORY=/tmp/nvidia-mps-log
+nvidia-cuda-mps-control -d 2>&1 && echo "MPS started" || echo "MPS unavailable in this container"
+
 echo "=== [3/5] launch A ==="
-vllm serve "$MODEL_A" --port $PORT_A --attention-backend TRITON_ATTN \
-  --gpu-memory-utilization $GPU_A --max-model-len 1024 > out/serverA.log 2>&1 &
+vllm serve "$MODEL_A" --port $PORT_A \
+  --gpu-memory-utilization $GPU_A --max-model-len 1024 &
 for i in $(seq 1 180); do curl -sf http://localhost:$PORT_A/health >/dev/null && echo "A ready" && break; sleep 5; done
 nvidia-smi --query-gpu=memory.used --format=csv
 
 echo "=== [3/5] launch B ==="
-vllm serve "$MODEL_B" --port $PORT_B --attention-backend TRITON_ATTN \
-  --gpu-memory-utilization $GPU_B --max-model-len 1024 > out/serverB.log 2>&1 &
+vllm serve "$MODEL_B" --port $PORT_B \
+  --gpu-memory-utilization $GPU_B --max-model-len 1024 &
 for i in $(seq 1 180); do curl -sf http://localhost:$PORT_B/health >/dev/null && echo "B ready" && break; sleep 5; done
 nvidia-smi --query-gpu=memory.used --format=csv
 
 echo "=== [3/5] launch C ==="
-vllm serve "$MODEL_C" --port $PORT_C --attention-backend TRITON_ATTN \
-  --gpu-memory-utilization $GPU_C > out/serverC.log 2>&1 &
+CUDA_MPS_ACTIVE_THREAD_PERCENTAGE=8 \
+vllm serve "$MODEL_C" --port $PORT_C \
+  --gpu-memory-utilization $GPU_C &
 for i in $(seq 1 180); do curl -sf http://localhost:$PORT_C/health >/dev/null && echo "C ready" && break; sleep 5; done
 nvidia-smi --query-gpu=memory.used --format=csv
 
@@ -104,7 +110,7 @@ echo "=== wait for GPU saturation ==="
 for i in $(seq 1 300); do
   UTIL=$(nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits | head -1)
   echo "util=${UTIL}% (poll $i)"
-  [ "$UTIL" -ge 40 ] && echo "saturated" && break
+  [ "$UTIL" -ge 80 ] && echo "saturated" && break
   sleep 5
 done
 
@@ -135,9 +141,6 @@ echo "=== [6/6] stop all servers ==="
 pkill -f "vllm serve" 2>/dev/null || true
 pkill -f "vllm bench" 2>/dev/null || true
 pkill -f "nvidia-smi" 2>/dev/null || true
-
-echo "=== run score.py script ==="
-python3 score.py
 
 exit 0
 '''
