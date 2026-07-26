@@ -14,7 +14,7 @@ PORT_B=8001
 PORT_C=8002
 
 CONC_A=16
-CONC_B=20
+CONC_B=14
 CONC_C=12
 
 GPU_A=0.41
@@ -26,35 +26,25 @@ git clone --depth 1 "$REPO_URL" /content/AE_HW
 cd /content/AE_HW
 mkdir -p out
 
-echo "=== [2/5] pip install and download models ==="
+echo "=== [2/5] pip install requirements ==="
 pip install --no-input uv
-uv pip install --system -r requirements.txt &
-python3 -c "from huggingface_hub import snapshot_download; snapshot_download('$MODEL_A')" &
-python3 -c "from huggingface_hub import snapshot_download; snapshot_download('$MODEL_B')" &
-python3 -c "from huggingface_hub import snapshot_download; snapshot_download('$MODEL_C')" &
-wait
-
-echo "=== attempt MPS ==="
-export CUDA_MPS_PIPE_DIRECTORY=/tmp/nvidia-mps
-export CUDA_MPS_LOG_DIRECTORY=/tmp/nvidia-mps-log
-nvidia-cuda-mps-control -d 2>&1 && echo "MPS started" || echo "MPS unavailable in this container"
+uv pip install --system -r requirements.txt
 
 echo "=== [3/5] launch A ==="
 vllm serve "$MODEL_A" --port $PORT_A --attention-backend TRITON_ATTN \
-  --gpu-memory-utilization $GPU_A --max-model-len 1024 &
+  --gpu-memory-utilization $GPU_A --max-model-len 1024 > out/serverA.log 2>&1 &
 for i in $(seq 1 180); do curl -sf http://localhost:$PORT_A/health >/dev/null && echo "A ready" && break; sleep 5; done
 nvidia-smi --query-gpu=memory.used --format=csv
 
 echo "=== [3/5] launch B ==="
 vllm serve "$MODEL_B" --port $PORT_B --attention-backend TRITON_ATTN \
-  --gpu-memory-utilization $GPU_B --max-model-len 1024 --enforce-eager &
+  --gpu-memory-utilization $GPU_B --max-model-len 1024 > out/serverB.log 2>&1 &
 for i in $(seq 1 180); do curl -sf http://localhost:$PORT_B/health >/dev/null && echo "B ready" && break; sleep 5; done
 nvidia-smi --query-gpu=memory.used --format=csv
 
 echo "=== [3/5] launch C ==="
-CUDA_MPS_ACTIVE_THREAD_PERCENTAGE=10 \
 vllm serve "$MODEL_C" --port $PORT_C --attention-backend TRITON_ATTN \
-  --gpu-memory-utilization $GPU_C --enforce-eager &
+  --gpu-memory-utilization $GPU_C > out/serverC.log 2>&1 &
 for i in $(seq 1 180); do curl -sf http://localhost:$PORT_C/health >/dev/null && echo "C ready" && break; sleep 5; done
 nvidia-smi --query-gpu=memory.used --format=csv
 
