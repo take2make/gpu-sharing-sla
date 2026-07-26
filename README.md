@@ -13,7 +13,7 @@ interactive workload's latency SLA under contention:
 ## Run (Colab/Kaggle T4)
 
 ```python
-!git clone --depth 1 https://github.com/LaurynasRekasius/AE_HW.git && cd AE_HW && bash run.sh
+!git clone --depth 1 https://github.com/take2make/gpu-sharing-sla && cd gpu-sharing-sla && bash run.sh
 ```
 
 `run.sh` installs pinned deps, launches all three servers co-resident, prints the

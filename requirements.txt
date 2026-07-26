@@ -1,0 +1,15 @@
+# Pinned environment for the co-location task.
+#
+# Install this on top of the stock free Colab/Kaggle T4 runtime (Ubuntu + CUDA 12.x
+# + NVIDIA driver, which Google/Kaggle provide). You do NOT author your own CUDA/vLLM
+# stack — you pin on top of theirs. Your run.sh does: pip install -r requirements.txt
+#
+# Pin exactly this; do not float to `latest`. If you must adjust the version to get it
+# running on your T4, say so in your writeup and commit the version you actually used.
+# (T4 is Turing: no FP8 — fp16/bf16 only, which is fine for these tiny models.)
+
+vllm==0.19.1
+
+# vllm pins torch + transformers + the CUDA wheels transitively, so we deliberately do
+# NOT pin those here (avoids fighting vllm's own constraints). For byte-reproducibility
+# you may additionally commit a `pip freeze > requirements.lock.txt` from your T4 run.
