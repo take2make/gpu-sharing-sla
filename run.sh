@@ -3,11 +3,6 @@ BODY=''':'
 # ===================== BASH BODY  =====================
 set -euo pipefail
 
-export VLLM_ATTENTION_BACKEND=TRITON_ATTN
-export LIBRARY_PATH="/usr/local/cuda/lib64/stubs:${LIBRARY_PATH:-}"
-ln -sf /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/libcuda.so 2>/dev/null || true
-echo "BACKEND=$VLLM_ATTENTION_BACKEND"
-
 REPO_URL="https://github.com/take2make/gpu-sharing-sla.git"
 
 MODEL_A="unsloth/Llama-3.2-1B-Instruct"
@@ -45,20 +40,20 @@ export CUDA_MPS_LOG_DIRECTORY=/tmp/nvidia-mps-log
 nvidia-cuda-mps-control -d 2>&1 && echo "MPS started" || echo "MPS unavailable in this container"
 
 echo "=== [3/5] launch A ==="
-vllm serve "$MODEL_A" --port $PORT_A \
+vllm serve "$MODEL_A" --port $PORT_A --attention-backend TRITON_ATTN \
   --gpu-memory-utilization $GPU_A --max-model-len 1024 &
 for i in $(seq 1 180); do curl -sf http://localhost:$PORT_A/health >/dev/null && echo "A ready" && break; sleep 5; done
 nvidia-smi --query-gpu=memory.used --format=csv
 
 echo "=== [3/5] launch B ==="
-vllm serve "$MODEL_B" --port $PORT_B \
+vllm serve "$MODEL_B" --port $PORT_B --attention-backend TRITON_ATTN \
   --gpu-memory-utilization $GPU_B --max-model-len 1024 --enforce-eager &
 for i in $(seq 1 180); do curl -sf http://localhost:$PORT_B/health >/dev/null && echo "B ready" && break; sleep 5; done
 nvidia-smi --query-gpu=memory.used --format=csv
 
 echo "=== [3/5] launch C ==="
 CUDA_MPS_ACTIVE_THREAD_PERCENTAGE=10 \
-vllm serve "$MODEL_C" --port $PORT_C \
+vllm serve "$MODEL_C" --port $PORT_C --attention-backend TRITON_ATTN \
   --gpu-memory-utilization $GPU_C --enforce-eager &
 for i in $(seq 1 180); do curl -sf http://localhost:$PORT_C/health >/dev/null && echo "C ready" && break; sleep 5; done
 nvidia-smi --query-gpu=memory.used --format=csv
