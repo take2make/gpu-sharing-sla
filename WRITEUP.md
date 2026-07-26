@@ -1,4 +1,4 @@
-# Co-location & Isolation — writeup
+# Co-location & Isolation
 
 ## How to run
 
@@ -14,9 +14,9 @@
 colab run --gpu t4 --timeout 3600 run.sh
 ```
 
-## 1. The isolation mechanism
+## The isolation mechanism
 
-Standing three vLLM servers on one 16 GB T4 exposes two *different* problems. The
+Standing three vLLM servers on one 16 GB T4 exposes two different problems. The
 first is locating all three models without OOM. The second is achieving a plausible
 latency for the A model under contention. The first problem is easily solved by
 choosing a different `--gpu-memory-utilization` for each model. The second is more
@@ -25,7 +25,7 @@ so I cap B's and C's request concurrency, and use MPS to cap each server's SM
 share, keeping their kernels from crowding out A. It allows to me prioritize requests to A even under contention of B+C.
 
 A's p99 e2e latency:
-- **alone (baseline):** 2739.452 ms
+- **alone:** 2739.452 ms
 - **under full B+C contention, after isolation:** 3900.369 ms → **1.4×** baseline
 
 The SLA limit is 2× baseline, so A held it with margin to spare (1.4× vs 2.0×).
@@ -33,7 +33,7 @@ The SLA limit is 2× baseline, so A held it with margin to spare (1.4× vs 2.0×
 **Goodput:** A sustained **__.__ req/s** while holding the SLA with B and C loaded
 (highest rate under the SLA from the sweep in `out/goodput_sweep.txt`).
 
-## 2. B model is a bottleneck
+## B model is a bottleneck
 
 - **B throughput:** retained **70%** of B's uncontended tok/s, we pay the throttcle cost of B to make A throuput better.
 - **C throughput:** retained **95%** — near 1.0 by design, since C was left un-throttled.
@@ -42,20 +42,19 @@ The SLA limit is 2× baseline, so A held it with margin to spare (1.4× vs 2.0×
   (**2424 MiB** free), i.e. the 0.84 split left ~16% slack — enough that no server OOM'd
   in the final config (see `out/tuning_trace.md` for the ones that did while tuning).
 
-## 3. Where the bottleneck was, and how I know
+## The bottleneck on T4 GPU
 
 Under contention the T4 is **compute (SM-time) bound, not KV-cache-capacity bound.**
 Evidence:
 
 - The lever that fixes A's p99 is **compute-side** — throttling B's *offered concurrency*
-  and chunking its prefill — while A's **memory footprint is unchanged**. If the problem
-  were KV-cache capacity, reducing B's request rate wouldn't help A's latency; it does.
+ — while A's **memory footprint is unchanged**. If the problem were KV-cache capacity, reducing B's request rate wouldn't help A's latency; it does.
 - `nvidia-smi` under load shows **GPU-util pinned near 100%** with memory comfortably
   below the cap (no OOM, no eviction) — saturation is compute, not capacity.
 - The spike lands in **__** (TTFT vs ITL): TTFT-dominated ⇒ prefill/SM contention;
   ITL-dominated ⇒ decode-step interference. (Fill from the JSONs.)
 
-## 4. Production transfer — isolating a latency feature from batch on an 8× NVLink B300 box
+## Production transfer — isolating a latency feature from batch on an 8× NVLink B300 box
 
 - **Dedicated cards for the latency tier.** The interactive product feature (the A-analog)
   gets its **own** GPU(s) — never share a card with a batch job. If the model needs more
