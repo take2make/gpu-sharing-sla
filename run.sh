@@ -36,20 +36,20 @@ export CUDA_MPS_LOG_DIRECTORY=/tmp/nvidia-mps-log
 nvidia-cuda-mps-control -d 2>&1 && echo "MPS started" || echo "MPS unavailable in this container"
 
 echo "=== [3/5] launch A ==="
-vllm serve "$MODEL_A" --port $PORT_A \
+vllm serve "$MODEL_A" --port $PORT_A --attention-backend TRITON_ATTN \
   --gpu-memory-utilization $GPU_A --max-model-len 1024 &
 for i in $(seq 1 180); do curl -sf http://localhost:$PORT_A/health >/dev/null && echo "A ready" && break; sleep 5; done
 nvidia-smi --query-gpu=memory.used --format=csv
 
 echo "=== [3/5] launch B ==="
-vllm serve "$MODEL_B" --port $PORT_B \
+vllm serve "$MODEL_B" --port $PORT_B--attention-backend TRITON_ATTN \
   --gpu-memory-utilization $GPU_B --max-model-len 1024 &
 for i in $(seq 1 180); do curl -sf http://localhost:$PORT_B/health >/dev/null && echo "B ready" && break; sleep 5; done
 nvidia-smi --query-gpu=memory.used --format=csv
 
 echo "=== [3/5] launch C ==="
 CUDA_MPS_ACTIVE_THREAD_PERCENTAGE=8 \
-vllm serve "$MODEL_C" --port $PORT_C \
+vllm serve "$MODEL_C" --port $PORT_C --attention-backend TRITON_ATTN \
   --gpu-memory-utilization $GPU_C &
 for i in $(seq 1 180); do curl -sf http://localhost:$PORT_C/health >/dev/null && echo "C ready" && break; sleep 5; done
 nvidia-smi --query-gpu=memory.used --format=csv
