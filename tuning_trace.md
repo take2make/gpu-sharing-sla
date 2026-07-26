@@ -27,3 +27,6 @@ A warm-up was polluting the baseline → increased --num-warmups and
 re-measured. B retention dropped (0.5) at B14 — pushed B too hard relative to its share.
 
 0.41/0.31/0.09 → tested MPS, but it degraded the baseline results (little improvement in B), so I kept the concurrency-based isolation.
+
+Note: run-to-run baseline drift means the same config can occasionally blow the SLA
+(noisy 200-sample p99 tail). Kept ~1.5× margin to stay safe against it.

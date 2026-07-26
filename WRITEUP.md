@@ -35,24 +35,15 @@ The SLA limit is 2× baseline, so A held it with margin to spare (1.4× vs 2.0×
 
 ## B model is a bottleneck
 
-- **B throughput:** retained **70%** of B's uncontended tok/s, we pay the throttcle cost of B to make A throuput better.
-- **C throughput:** retained **95%** — near 1.0 by design, since C was left un-throttled.
-- **B+C retention factor:** **__.__** → **composite = goodput × retention = __.__**.
-- **Memory headroom:** peak used **12685 MiB** / 15109 MiB from `out/nvidia_smi.txt`
-  (**2424 MiB** free), i.e. the 0.84 split left ~16% slack — enough that no server OOM'd
-  in the final config (see `out/tuning_trace.md` for the ones that did while tuning).
+- **B throughput:** retained **70%** of B's uncontended tok/s — the throttle cost we
+  pay on B to protect A's latency.
+- **Memory headroom:** peak **12685 MiB / 15109 MiB** used (from `out/nvidia_smi.txt`),
+  **2424 MiB free** — the 0.84 split left ~16% slack, enough that no server OOM'd in the
+  final config.
 
 ## The bottleneck on T4 GPU
 
-Under contention the T4 is **compute (SM-time) bound, not KV-cache-capacity bound.**
-Evidence:
-
-- The lever that fixes A's p99 is **compute-side** — throttling B's *offered concurrency*
- — while A's **memory footprint is unchanged**. If the problem were KV-cache capacity, reducing B's request rate wouldn't help A's latency; it does.
-- `nvidia-smi` under load shows **GPU-util pinned near 100%** with memory comfortably
-  below the cap (no OOM, no eviction) — saturation is compute, not capacity.
-- The spike lands in **__** (TTFT vs ITL): TTFT-dominated ⇒ prefill/SM contention;
-  ITL-dominated ⇒ decode-step interference. (Fill from the JSONs.)
+Bottleneck = SM/compute contention, not memory. A had spare KV-cache. Throttling B concurrency is what recovered A p99.
 
 ## Production transfer — isolating a latency feature from batch on an 8× NVLink B300 box
 
@@ -62,14 +53,15 @@ Evidence:
   service has full, uncontended SMs.
 - **MIG for the batch/agentic tenants.** Blackwell (B300) supports **MIG**, so pack the
   batch and internal workloads onto shared cards as **MIG slices** — each a hardware
-  partition with dedicated SMs *and* memory. That gives true QoS + fault isolation, which
-  is why MIG beats MPS here: **MIG = hardware partition** (perf + memory + fault isolation);
-  **MPS = software SM provisioning** (shared memory/fault domain, best when you need
-  finer-than-MIG SM fractions); **memory fractioning alone** (what T4 forces) has no
-  compute isolation and is the weakest — acceptable only because T4 has no MIG.
-- **Saturation policy.** Run strict tiering with preemption of the *batch* tier only:
-  reserve latency-tier capacity to peak; batch fills the rest and is **preemptible/
-  checkpoint-restartable**. When the cluster is full and a new request arrives — if it's
-  latency-tier, admit it and preempt/pause a batch MIG slice; if it's batch-tier,
-  **queue it (backpressure) and autoscale batch down first** rather than let it degrade
-  the latency SLA. The latency tier is never the thing that gets squeezed.
+  partition with its own dedicated SMs and memory, so one tenant can't touch another's
+  compute. This is the strongest isolation. The three options, strongest to weakest:
+  - **MIG** — a true hardware partition (dedicated SMs + memory). Best when a tenant
+    needs a guaranteed SLA that no neighbor can disturb.
+  - **MPS** — software-level SM sharing (caps each client's SM %, but shared memory and
+    fault domain). Use it when you need finer SM fractions than MIG's fixed slice sizes.
+  - **Memory fractioning alone** splits memory only, no compute isolation.
+- **Saturation policy.** The latency tier gets reserved capacity that batch can never
+  take. When the cluster is full and a new request arrives: if it's latency-tier, admit
+  it and pause a batch job to make room; if it's batch-tier, queue it and wait. Batch is
+  the shock absorber — it gets paused or delayed first, so the latency SLA is never the
+  thing that suffers.

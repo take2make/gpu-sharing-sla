@@ -24,10 +24,10 @@ composite score.
 
 | Metric | Value |
 |---|---|
-| A p99 alone | ~3160 ms |
-| A p99 under contention | ~3560 ms (1.13×) — SLA held |
-| A goodput at SLA | ~4.7 req/s |
-| B / C retention | 0.52 / 1.00 |
-| Composite | ~3.8 |
+| A p99 alone | ~3161 ms |
+| A p99 under contention | ~4146 ms (1.32×) — SLA held |
+| A goodput at SLA | ~4.244 req/s |
+| B / C retention | 1.00 / 1.00 |
+| Composite | ~4.2373 |
 
 See `out/tuning_trace.md` for the tuning trail and `WRITEUP.md` for analysis.
