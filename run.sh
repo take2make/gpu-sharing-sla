@@ -36,6 +36,7 @@ export CUDA_MPS_LOG_DIRECTORY=/tmp/nvidia-mps-log
 nvidia-cuda-mps-control -d 2>&1 && echo "MPS started" || echo "MPS unavailable in this container"
 
 echo "=== [3/5] launch A ==="
+CUDA_MPS_ACTIVE_THREAD_PERCENTAGE=70 \
 vllm serve "$MODEL_A" --port $PORT_A --attention-backend TRITON_ATTN \
   --gpu-memory-utilization $GPU_A --max-model-len 1024 > out/serverA.log 2>&1 &
 for i in $(seq 1 180); do curl -sf http://localhost:$PORT_A/health >/dev/null && echo "A ready" && break; sleep 5; done
