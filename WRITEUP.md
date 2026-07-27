@@ -24,26 +24,42 @@ complex, because all three servers share the same SMs -> memory splitting doesn'
 so I cap B's and C's request concurrency, and use MPS to cap each server's SM
 share, keeping their kernels from crowding out A. It allows to me prioritize requests to A even under contention of B+C.
 
+A subtler issue: A baseline p99 moves when I change A concurrency, because higher
+concurrency means A own requests queue against each other - at high concurrency the
+alone p99 can climb toward ~20000 ms. Since the SLA is defined relative to this
+baseline, a drifting baseline makes the ratio unstable. To keep the baseline fixed, I
+measured A_alone at a constant concurrency (8) and varied concurrency only in the
+goodput sweep under B+C contention.
+
 A's p99 e2e latency:
-- **alone:** 2739.452 ms
-- **under full B+C contention, after isolation:** 3900.369 ms → **1.4×** baseline
+- **alone:** 2352 ms (important to keep concurency the same)
+- **under full B+C contention, after isolation:** 4073 ms → **1.76×** baseline
 
-The SLA limit is 2× baseline, so A held it with margin to spare (1.4× vs 2.0×).
+The SLA limit is 2× baseline, so A held it with margin to spare (1.76× vs 2.0×).
 
-**Goodput:** A sustained **__.__ req/s** while holding the SLA with B and C loaded
-(highest rate under the SLA from the sweep in `out/goodput_sweep.txt`).
+**Goodput:** A sustained **4.472 req/s** while holding the SLA (1.98x) with B and C loaded
 
-## B model is a bottleneck
+## Bottleneck: shared SM compute + concurrency limits
 
-- **B throughput:** retained **70%** of B's uncontended tok/s — the throttle cost we
-  pay on B to protect A's latency.
+All three servers time-share the T4's 40 SMs, so the binding constraint is compute
+contention and how much concurrency each tenant is allowed — not memory, and not any
+single model. Raising any tenant's concurrency crowds the others off the SMs, which is
+what drives A's p99 up under load.
+
 - **Memory headroom:** peak **12685 MiB / 15109 MiB** used (from `out/nvidia_smi.txt`),
-  **2424 MiB free** — the 0.84 split left ~16% slack, enough that no server OOM'd in the
-  final config.
+  **2424 MiB free** — the 0.81 split left ~16% real slack after CUDA contexts, so no
+  server OOM'd in the final config. Memory was never the binding constraint; SM
+  contention was.
 
-## The bottleneck on T4 GPU
+## Results
 
-Bottleneck = SM/compute contention, not memory. A had spare KV-cache. Throttling B concurrency is what recovered A p99.
+| Metric | Value |
+|---|---|
+| A p99 alone | ~2311 ms |
+| A p99 under contention | ~4073 ms (1.76×) — SLA held |
+| A goodput at SLA | ~4.122 req/s |
+| B / C retention | 0.94 / 0.82 |
+| Composite | ~3.6394 |
 
 ## Production transfer — isolating a latency feature from batch on an 8× NVLink B300 box
 
