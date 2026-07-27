@@ -100,11 +100,11 @@ echo "=== start B + C load ==="
 vllm bench serve --model "$MODEL_B" --base-url http://localhost:$PORT_B \
   --dataset-name random --random-input-len 512 --random-output-len 256 \
   --random-range-ratio 0 --ignore-eos --seed 1234 \
-  --num-prompts 1600 --max-concurrency $CONC_B \
+  --num-prompts 2000 --max-concurrency $CONC_B \
   --save-result --result-filename out/B_contended.json &
 vllm bench serve --backend openai-embeddings --model "$MODEL_C" --base-url http://localhost:$PORT_C \
   --endpoint /v1/embeddings --dataset-name random --random-input-len 256 \
-  --num-prompts 12000 --max-concurrency $CONC_C \
+  --num-prompts 20000 --max-concurrency $CONC_C \
   --save-result --result-filename out/C_contended.json &
 
 echo "=== wait for GPU saturation ==="
