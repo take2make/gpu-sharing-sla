@@ -13,9 +13,9 @@ PORT_A=8000
 PORT_B=8001
 PORT_C=8002
 
-CONC_A=24
+CONC_A=16
 CONC_B=14
-CONC_C=14
+CONC_C=12
 
 GPU_A=0.41
 GPU_B=0.31
@@ -49,7 +49,7 @@ for i in $(seq 1 180); do curl -sf http://localhost:$PORT_B/health >/dev/null &&
 nvidia-smi --query-gpu=memory.used --format=csv
 
 echo "=== [3/5] launch C ==="
-CUDA_MPS_ACTIVE_THREAD_PERCENTAGE=8 \
+CUDA_MPS_ACTIVE_THREAD_PERCENTAGE=10 \
 vllm serve "$MODEL_C" --port $PORT_C --attention-backend TRITON_ATTN \
   --gpu-memory-utilization $GPU_C > out/serverC.log 2>&1 &
 for i in $(seq 1 180); do curl -sf http://localhost:$PORT_C/health >/dev/null && echo "C ready" && break; sleep 5; done
