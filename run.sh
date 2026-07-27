@@ -71,7 +71,7 @@ vllm bench serve \
   --random-range-ratio 0 \
   --ignore-eos \
   --seed 1234 \
-  --num-prompts 200 --max-concurrency $CONC_A \
+  --num-prompts 500 --max-concurrency $CONC_A \
   --percentile-metrics ttft,tpot,itl,e2el \
   --metric-percentiles 50,95,99 \
   --num-warmups 10 \
