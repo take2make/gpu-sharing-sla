@@ -13,9 +13,9 @@ PORT_A=8000
 PORT_B=8001
 PORT_C=8002
 
-CONC_A=16
-CONC_B=8
-CONC_C=12
+CONC_A=6
+CONC_B=14
+CONC_C=20
 
 GPU_A=0.41
 GPU_B=0.31
@@ -123,7 +123,7 @@ vllm bench serve --model "$MODEL_A" --base-url http://localhost:$PORT_A \
   --random-range-ratio 0 --ignore-eos --seed 1234 \
   --num-prompts 200 --max-concurrency $CONC_A \
   --percentile-metrics ttft,tpot,itl,e2el --metric-percentiles 50,95,99 \
-  --save-result --result-filename out/A_contended.json
+  --save-result --num-warmups 10 --result-filename out/A_contended.json
 
 echo "=== wait for GPU to drain ==="
 for i in $(seq 1 300); do
