@@ -71,7 +71,7 @@ vllm bench serve \
   --random-range-ratio 0 \
   --ignore-eos \
   --seed 1234 \
-  --num-prompts 500 --max-concurrency $CONC_A \
+  --num-prompts 500 --max-concurrency 8 \
   --percentile-metrics ttft,tpot,itl,e2el \
   --metric-percentiles 50,95,99 \
   --num-warmups 10 \
@@ -104,7 +104,7 @@ vllm bench serve --model "$MODEL_B" --base-url http://localhost:$PORT_B \
   --save-result --result-filename out/B_contended.json &
 vllm bench serve --backend openai-embeddings --model "$MODEL_C" --base-url http://localhost:$PORT_C \
   --endpoint /v1/embeddings --dataset-name random --random-input-len 256 \
-  --num-prompts 15000 --max-concurrency $CONC_C \
+  --num-prompts 10000 --max-concurrency $CONC_C \
   --save-result --result-filename out/C_contended.json &
 
 echo "=== wait for GPU saturation ==="
