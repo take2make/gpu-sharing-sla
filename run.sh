@@ -13,7 +13,7 @@ PORT_A=8000
 PORT_B=8001
 PORT_C=8002
 
-CONC_A=200
+CONC_A=20
 CONC_B=14
 CONC_C=12
 
@@ -71,7 +71,7 @@ vllm bench serve \
   --random-range-ratio 0 \
   --ignore-eos \
   --seed 1234 \
-  --num-prompts 500 --max-concurrency 8 \
+  --num-prompts 200 --max-concurrency 8 \
   --percentile-metrics ttft,tpot,itl,e2el \
   --metric-percentiles 50,95,99 \
   --num-warmups 10 \
